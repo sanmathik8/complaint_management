@@ -1,4 +1,4 @@
-# 🛡️ Complaint Platform — Cloud-Native Kubernetes Infrastructure
+# 🛡️ Complaint Platform — Cloud-Native Kubernetes Microservices Platform
 
 [![Kubernetes](https://img.shields.io/badge/Orchestration-Kubernetes_HPA-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![Docker](https://img.shields.io/badge/Container-Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
@@ -6,47 +6,113 @@
 [![Django](https://img.shields.io/badge/Backend-Django_DRF-092E20?logo=django&logoColor=white)](https://www.djangoproject.com/)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js_14-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
 
-A containerized, multi-tier anonymous complaint management microservice platform orchestrated with **Kubernetes Deployments**, **Horizontal Pod Autoscalers (HPA)**, and **Terraform** on AWS.
+---
+
+## 📌 Executive Summary & Problem Statement
+
+### The Problem
+Deploying traditional web applications on unmanaged virtual servers creates critical scaling and operational bottlenecks:
+1. **Monolithic Vulnerability to Traffic Spikes:** During high-volume reporting periods, a sudden surge in traffic can overload monolithic backend servers, leading to system outages.
+2. **Lack of Automated Self-Healing:** Manual container monitoring requires human intervention when application instances crash or run out of memory.
+3. **Data Security & Spam Risk:** Anonymous reporting systems are vulnerable to duplicate submission spam and unencrypted data exposure in central databases.
+
+### The Complaint Platform Solution
+The Complaint Platform is a **cloud-native, containerized microservices platform** engineered to deliver high-availability, automatic scaling, and secure data handling:
+- **Kubernetes Orchestration:** Manages backend API services and frontend web applications into isolated pod replicas controlled by **Kubernetes Ingress** resources.
+- **Horizontal Pod Autoscaling (HPA):** Monitors CPU and memory consumption dynamically, automatically scaling pod instances up or down based on load.
+- **Data Security & Spam Safeguards:** Encrypts report contents at rest in **PostgreSQL** using AES encryption, enforces submission cooldown limits, and detects duplicate spam via Jaccard similarity algorithms.
+- **Terraform Infrastructure Automation:** Provisions cloud cluster nodes, networking security groups, and database instances using modular HCL code.
 
 ---
 
-## 🎯 Architectural Overview
-
-The platform isolates backend API services and frontend web applications into scalable Kubernetes pods. It routes incoming HTTP traffic through a Kubernetes **Ingress controller**, scales pod replicas dynamically using **Horizontal Pod Autoscaling (HPA)** based on CPU/memory usage metrics, and persists encrypted report data to a **PostgreSQL** database.
+## 📐 System Architecture
 
 ```mermaid
-flowchart LR
-    A[🌐 External Traffic] --> B[🔀 Kubernetes Ingress]
-    B --> C[📱 Next.js Frontend Pods]
-    B --> D[⚡ Django REST API Pods]
-    D --> E[🗄️ PostgreSQL Database]
-    F[📈 Horizontal Pod Autoscaler] -.->|Autoscale CPU/Mem| D
+flowchart TD
+    subgraph Ingress_Layer [Kubernetes Ingress & Routing]
+        A[🌐 External Web Traffic] --> B[🔀 Kubernetes Ingress Controller ingress.yaml]
+    end
+
+    subgraph Pod_Layer [Kubernetes Pod Deployment & Autoscaling]
+        B -->|Route / | C[📱 Next.js 14 Frontend Pods frontend-deployment.yaml]
+        B -->|Route /api | D[⚡ Django REST API Backend Pods backend-deployment.yaml]
+        E[📈 Horizontal Pod Autoscaler backend-hpa.yaml] -.->|Monitor CPU/Mem & Autoscale| D
+    end
+
+    subgraph Data_Layer [Encrypted Database & Configuration]
+        D --> F[🗄️ PostgreSQL Database Engine]
+        G[⚙️ Kubernetes ConfigMap & Secrets] --> D
+    end
 ```
 
 ---
 
-## ⚡ Key Engineering Features
+## 🔍 Step-by-Step Technical Workflow
 
-- **☸️ Declarative Kubernetes Manifests:** Authored production specifications (`backend-deployment.yaml`, `backend-hpa.yaml`, `backend-service.yaml`, `ingress.yaml`, `configmap.yaml`).
-- **📈 Horizontal Pod Autoscaling (HPA):** Dynamically scales API pod replicas to maintain system performance during volume spikes.
-- **🛡️ Data Encryption & Duplicate Detection:** Implements AES content encryption at rest and Jaccard similarity word-overlap algorithms to flag duplicate reporting.
-- **📦 Multi-Stage Docker Builds:** Optimizes container image sizes for backend API services and Next.js applications.
-- **🏗️ Terraform IaC:** Provisioned underlying cloud infrastructure and PostgreSQL database tiers via HCL scripts.
-
----
-
-## 🛠️ Technology Stack
-
-- **Container Orchestration:** Kubernetes (k8s Deployments, HPA, Ingress, Services, ConfigMaps)
-- **Languages & Frameworks:** Python, Django REST Framework, TypeScript, Next.js 14, Tailwind CSS
-- **Databases & Storage:** PostgreSQL
-- **Infrastructure & DevOps:** Docker, Docker Compose, Terraform
+1. **Traffic Routing:** Incoming web traffic enters the cluster via the **Kubernetes Ingress Controller** (`ingress.yaml`). Ingress rules route root requests (`/`) to Next.js frontend pods and API requests (`/api/`) to Django REST Framework backend pods.
+2. **Anonymous Session & Anti-Spam Check:** When a user submits a report, the backend middleware validates submission quotas (daily/weekly limits) and evaluates text content against existing entries using **Jaccard similarity algorithms** to block redundant spam.
+3. **AES Data Encryption:** Sensitive report payloads are encrypted using AES encryption before committing to the **PostgreSQL** database.
+4. **Dynamic Pod Scaling (HPA):** The **Horizontal Pod Autoscaler** (`backend-hpa.yaml`) queries metrics server data. If CPU utilization exceeds target thresholds (e.g., 70%), HPA automatically provisions additional API pod replicas.
+5. **Configuration Injection:** Database connection strings, encryption keys, and environment variables are injected into running containers at runtime using **Kubernetes ConfigMaps** and **Secrets**.
 
 ---
 
-## 🚀 Quickstart & Usage
+## 📂 Repository Directory Structure
 
-### 1. Deploy Local Containers with Docker Compose
+```text
+complaint/
+├── backend/
+│   ├── complaints/                 # Django Application Module
+│   │   ├── models.py               # Database Models (Complaint, Category, Action)
+│   │   ├── views.py                # API Endpoint Views & Quota Rules
+│   │   ├── encryption.py           # AES Content Encryption Utilities
+│   │   └── throttling.py           # Rate Limiting & Cooldown Throttling
+│   ├── core/                       # User Auth, Permissions & Middleware
+│   ├── Dockerfile                  # Multi-Stage Backend Dockerfile
+│   ├── requirements.txt            # Python Dependencies
+│   └── manage.py                   # Django Management Script
+├── frontend/
+│   ├── app/                        # Next.js 14 App Router Pages
+│   ├── components/                 # Reusable UI Components
+│   ├── Dockerfile                  # Multi-Stage Frontend Dockerfile
+│   └── package.json                # Frontend Dependencies
+├── k8s/
+│   ├── namespace.yaml              # Kubernetes Dedicated Namespace Definition
+│   ├── configmap.yaml              # Environment Variable ConfigMap
+│   ├── backend-deployment.yaml     # Django API Deployment Specification
+│   ├── backend-service.yaml        # Internal ClusterIP Service for Backend
+│   ├── backend-hpa.yaml            # Horizontal Pod Autoscaler for Backend
+│   ├── frontend-deployment.yaml    # Next.js App Deployment Specification
+│   ├── frontend-service.yaml       # Internal ClusterIP Service for Frontend
+│   ├── frontend-hpa.yaml           # Horizontal Pod Autoscaler for Frontend
+│   └── ingress.yaml                # NGINX Ingress Routing Rules
+├── terraform/
+│   ├── main.tf                     # EKS Cluster & Networking Infrastructure
+│   ├── variables.tf                # Cluster Variables
+│   └── outputs.tf                  # Infrastructure Endpoints
+├── docker-compose.yml              # Local Development Multi-Container Setup
+└── README.md                       # Comprehensive Project Documentation
+```
+
+---
+
+## 🛠️ Technology Stack Breakdown
+
+- **Container Orchestration:** Kubernetes (k8s Deployments, Services, HPA, Ingress, ConfigMaps)
+- **Backend Framework:** Python, Django REST Framework (DRF), Gunicorn
+- **Frontend Framework:** Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **Database:** PostgreSQL
+- **DevOps & IaC:** Docker, Docker Compose, Terraform 1.14+
+
+---
+
+## 🚀 How to Run & Deploy Locally
+
+### Prerequisites
+- Docker & Docker Compose installed
+- `kubectl` installed (for Kubernetes deployment)
+
+### 1. Launch Multi-Container Setup via Docker Compose
 ```bash
 docker-compose up --build
 ```
@@ -61,4 +127,4 @@ kubectl apply -f k8s/
 ---
 
 ## 📄 License
-Distributed under the MIT License.
+Distributed under the MIT License. See `LICENSE` for details.
